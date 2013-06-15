@@ -28,25 +28,38 @@
 (define last-entered (make-parameter ""))
 
 (define (do-enter mod name)
-  (enter-module mod)
+  (visit-module mod)
   (current-namespace (module->namespace mod))
   (last-entered name))
+
+(define (file-mod? mod)
+  (and (list? mod)
+       (= 2 (length mod))
+       (eq? 'file (car mod))
+       (path-string? (cadr mod))))
+
+(define (submod-path mod)
+  (and (list? mod)
+       (eq? 'submod (car mod))
+       (> (length mod) 1)
+       (let ([parent (cadr mod)])
+         (cond [(path-string? parent) `(submod (file ,parent) ,@(cddr mod))]
+               [(file-mod? parent) mod]
+               [(symbol? parent) mod]
+               [else #f]))))
+
+(define (module-error stx mod)
+  (raise-syntax-error #f "Invalid module path" stx mod))
 
 (define (enter! mod stx)
   (cond [(not mod)
          (current-namespace top-namespace)
          (last-entered "")]
         [(symbol? mod) (do-enter mod (symbol->string mod))]
-        [(and (list? mod)
-              (= 2 (length mod))
-              (eq? 'file (car mod))
-              (path-string? (cadr mod))) (do-enter mod (cadr mod))]
         [(path-string? mod) (do-enter `(file ,mod) mod)]
-        [else (raise-syntax-error
-               #f
-               "not a valid module path, and not #f"
-               stx
-               mod)]))
+        [(file-mod? mod) (do-enter mod (cadr mod))]
+        [(submod-path mod) => (lambda (m) (do-enter m m))]
+        [else (module-error stx mod)]))
 
 (define orig-loader (current-load/use-compiled))
 (define geiser-loader (module-loader orig-loader))
@@ -56,15 +69,25 @@
   (define (eval-here form) (eval form geiser-main))
   (let* ([mod (read)]
          [lang (read)]
-         [form (read)])
-    (datum->syntax #f
-                   (list 'quote
-                         (cond [(equal? form '(unquote apply))
-                                (let* ([proc (eval-here (read))]
-                                       [args (map eval-here (read))]
-                                       [ev (lambda () (apply proc args))])
-                                  (eval-in `(,ev) mod lang))]
-                               [else ((geiser:eval lang) form mod)])))))
+         [form (read)]
+         [res (cond [(equal? form '(unquote apply))
+                     (let* ([proc (eval-here (read))]
+                            [args (map eval-here (read))]
+                            [ev (lambda () (apply proc args))])
+                       (eval-in `(,ev) mod lang))]
+                    [else ((geiser:eval lang) form mod)])])
+    (datum->syntax #f (list 'quote res))))
+
+(define (geiser-load stx)
+  (let* ([mod (read)]
+         [res (call-with-result
+               (lambda ()
+                 (visit-module (cond [(file-mod? mod) mod]
+                                     [(path-string? mod) `(file ,mod)]
+                                     [(submod-path mod)]
+                                     [else (module-error stx mod)]))
+                 (void)))])
+    (datum->syntax stx (list 'quote res))))
 
 (define ((geiser-read prompt))
   (prompt)
@@ -78,13 +101,14 @@
          [(start-geiser) (datum->syntax #f `(list 'port ,(start-geiser)))]
          [(enter) (enter! (read) #'cmd)]
          [(geiser-eval) (geiser-eval)]
+         [(geiser-load) (geiser-load #'cmd)]
          [(geiser-no-values) (datum->syntax #f (void))]
          [(add-to-load-path) (add-to-load-path (read))]
          [(set-image-cache) (image-cache (read))]
          [(help) (get-help (read) (read))]
          [(image-cache) (image-cache)]
-         [(gcd) (current-directory)]
-         [(cd) (current-directory (read))]
+         [(pwd) (~a (current-directory))]
+         [(cd) (current-directory (~a (read)))]
          [else form])]
       [_ form])))
 
