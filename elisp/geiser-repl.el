@@ -334,6 +334,8 @@ module command as a string")
               'geiser-repl--output-filter
               nil
               t)
+    (set-process-coding-system (get-buffer-process (current-buffer)) 'utf-8 'utf-8)
+    (setq buffer-file-coding-system 'utf-8)
     (set-process-query-on-exit-flag (get-buffer-process (current-buffer))
                                     geiser-repl-query-on-kill-p)
     (message "%s up and running!" (geiser-repl--repl-name impl))))
