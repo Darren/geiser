@@ -369,14 +369,15 @@ module command as a string")
     (unless seen (error "%s" "No prompt found!"))))
 
 (defun geiser-repl--is-debugging ()
-  (let ((dp (geiser-con--connection-debug-prompt geiser-repl--connection)))
-    (and dp
-         comint-last-prompt-overlay
-         (save-excursion
-           (goto-char (overlay-start comint-last-prompt-overlay))
-           (re-search-forward dp
-                              (overlay-end comint-last-prompt-overlay)
-                              t)))))
+  (let ((dp (geiser-con--connection-debug-prompt geiser-repl--connection))
+	(beg (geiser-comint-last-prompt-start))
+	(end (geiser-comint-last-prompt-end)))
+    (and dp beg end
+	 (save-excursion
+	   (goto-char beg)
+	   (re-search-forward dp
+			      end
+			      t)))))
 
 (defun geiser-repl--connection* ()
   (let ((buffer (geiser-repl--set-up-repl geiser-impl--implementation)))
@@ -491,8 +492,8 @@ module command as a string")
 
 (defun geiser-repl--beginning-of-defun ()
   (save-restriction
-    (when comint-last-prompt-overlay
-      (narrow-to-region (overlay-end comint-last-prompt-overlay) (point)))
+    (when (geiser-comint-last-prompt-end)
+      (narrow-to-region (geiser-comint-last-prompt-end) (point)))
     (let ((beginning-of-defun-function nil))
       (beginning-of-defun))))
 
@@ -514,15 +515,27 @@ module command as a string")
     (insert "\n")
     (lisp-indent-line)))
 
+(defun geiser-comint-last-prompt-end ()
+  (cond ((boundp 'comint-last-prompt-overlay)
+	 (and comint-last-prompt-overlay (overlay-end comint-last-prompt-overlay)))
+	((boundp 'comint-last-prompt)
+	 (and comint-last-prompt (cdr comint-last-prompt)))
+	(t (error "comint last prompt not found"))))
+
+(defun geiser-comint-last-prompt-start ()
+  (cond ((boundp 'comint-last-prompt-overlay)
+	 (and comint-last-prompt-overlay (overlay-start comint-last-prompt-overlay)))
+	((boundp 'comint-last-prompt)
+	 (and comint-last-prompt (car comint-last-prompt)))
+	(t (error "comint last prompt not found"))))
+
 (defun geiser-repl--last-prompt-end ()
-  (if comint-last-prompt-overlay
-      (overlay-end comint-last-prompt-overlay)
-    (save-excursion (geiser-repl--bol) (point))))
+  (or (geiser-comint-last-prompt-end)
+      (save-excursion (geiser-repl--bol) (point))))
 
 (defun geiser-repl--last-prompt-start ()
-  (if comint-last-prompt-overlay
-      (overlay-start comint-last-prompt-overlay)
-    (save-excursion (geiser-repl--bol) (point))))
+  (or (geiser-comint-last-prompt-start)
+      (save-excursion (geiser-repl--bol) (point))))
 
 (defun geiser-repl--nesting-level ()
   (save-restriction
