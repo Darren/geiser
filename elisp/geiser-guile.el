@@ -328,7 +328,6 @@ it spawn a server thread."
                                  1 compilation-error-face)))
   (let ((geiser-log-verbose-p t))
     (when remote (geiser-guile--set-geiser-load-path))
-    (when remote (geiser-guile--set-load-path))
     (geiser-guile--set-port-encoding)
     (geiser-eval--send/wait ",use (geiser emacs)\n'done")
     (mapcar (lambda (dir)
