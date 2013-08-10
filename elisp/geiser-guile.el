@@ -313,6 +313,12 @@ it spawn a server thread."
                        'done)))
     (geiser-eval--send/wait code)))
 
+(defun geiser-guile--set-port-encoding ()
+  (geiser-eval--send/wait `(begin (set-port-encoding! (current-input-port) "utf-8")
+                                  (set-port-encoding! (current-output-port) "utf-8")
+                                  (set-port-encoding! (current-error-port) "utf-8")
+                                  'done)))
+
 (defun geiser-guile--startup (remote)
   (set (make-local-variable 'compilation-error-regexp-alist)
        `((,geiser-guile--path-rx geiser-guile--resolve-file-x)
@@ -323,6 +329,7 @@ it spawn a server thread."
                                                     compilation-error-face)))
   (let ((geiser-log-verbose-p t))
     (when remote (geiser-guile--set-load-path))
+    (geiser-guile--set-port-encoding)
     (geiser-eval--send/wait ",use (geiser emacs)\n'done")
     (geiser-guile-update-warning-level)))
 
