@@ -370,6 +370,41 @@ using start-geiser, a procedure in the geiser/server module."
     (setq geiser-image-cache-dir
           (geiser-eval--send/result '(:eval (image-cache) geiser/user)))))
 
+
+;;; Additional commands
+
+(defvar geiser-racket--submodule-history ())
+
+(defun geiser-racket--submodule-form (name)
+  (format "module[+*]? %s"
+          (cond ((eq 1 name) "")
+                ((numberp name)
+                 (read-string "Submodule name: " nil
+                              'geiser-racket--submodule-history))
+                ((stringp name) name)
+                (t ""))))
+
+(defun geiser-racket-toggle-submodules (&optional name)
+  "Toggle visibility of submodule forms.
+
+Use a prefix to be asked for a submodule name."
+  (interactive "p")
+  (geiser-edit--toggle-visibility (geiser-racket--submodule-form name)))
+
+(defun geiser-racket-show-submodules (&optional name)
+  "Unconditionally shows all submodule forms.
+
+Use a prefix to be asked for a submodule name."
+  (interactive "p")
+  (cond ((eq 1 name) (geiser-edit--show-all))
+        (t (geiser-edit--show (geiser-racket--submodule-form name)))))
+
+(defun geiser-racket-hide-submodules (&optional name)
+  "Unconditionally hides all visible submodules.
+
+Use a prefix to be asked for a submodule name."
+  (interactive "p")
+  (geiser-edit--hide (geiser-racket--submodule-form name)))
 
 
 ;;; Implementation definition:

@@ -266,6 +266,23 @@ module command as a string")
       (geiser-repl--read-impl prompt)))
 
 
+;;; Prompt &co.
+
+(defun geiser-repl--last-prompt-end ()
+  (cond ((and (boundp 'comint-last-prompt) (markerp (cdr comint-last-prompt)))
+         (marker-position (cdr comint-last-prompt)))
+        ((and (boundp 'comint-last-prompt-overlay) comint-last-prompt-overlay)
+         (overlay-end comint-last-prompt-overlay))
+        (t (save-excursion (geiser-repl--bol) (point)))))
+
+(defun geiser-repl--last-prompt-start ()
+  (cond ((and (boundp 'comint-last-prompt) (markerp (car comint-last-prompt)))
+         (marker-position (car comint-last-prompt)))
+        ((and (boundp 'comint-last-prompt-overlay) comint-last-prompt-overlay)
+         (overlay-start comint-last-prompt-overlay))
+        (t (save-excursion (geiser-repl--bol) (point)))))
+
+
 ;;; REPL connections
 
 (make-variable-buffer-local
@@ -492,8 +509,7 @@ module command as a string")
 
 (defun geiser-repl--beginning-of-defun ()
   (save-restriction
-    (when (geiser-comint-last-prompt-end)
-      (narrow-to-region (geiser-comint-last-prompt-end) (point)))
+    (narrow-to-region (geiser-repl--last-prompt-end) (point))
     (let ((beginning-of-defun-function nil))
       (beginning-of-defun))))
 
@@ -618,6 +634,7 @@ buffer."
   (set (make-local-variable 'comint-use-prompt-regexp) t)
   (set (make-local-variable 'comint-prompt-read-only)
        geiser-repl-read-only-prompt-p)
+  (setq comint-process-echoes nil)
   (set (make-local-variable 'beginning-of-defun-function)
        'geiser-repl--beginning-of-defun)
   (set (make-local-variable 'comint-input-ignoredups)
