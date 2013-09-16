@@ -386,15 +386,11 @@ module command as a string")
     (unless seen (error "%s" "No prompt found!"))))
 
 (defun geiser-repl--is-debugging ()
-  (let ((dp (geiser-con--connection-debug-prompt geiser-repl--connection))
-	(beg (geiser-comint-last-prompt-start))
-	(end (geiser-comint-last-prompt-end)))
-    (and dp beg end
-	 (save-excursion
-	   (goto-char beg)
-	   (re-search-forward dp
-			      end
-			      t)))))
+  (let ((dp (geiser-con--connection-debug-prompt geiser-repl--connection)))
+    (and dp
+         (save-excursion
+           (goto-char (geiser-repl--last-prompt-start))
+           (re-search-forward dp (geiser-repl--last-prompt-end) t)))))
 
 (defun geiser-repl--connection* ()
   (let ((buffer (geiser-repl--set-up-repl geiser-impl--implementation)))
@@ -530,28 +526,6 @@ module command as a string")
     (narrow-to-region comint-last-input-start (point-max))
     (insert "\n")
     (lisp-indent-line)))
-
-(defun geiser-comint-last-prompt-end ()
-  (cond ((boundp 'comint-last-prompt-overlay)
-	 (and comint-last-prompt-overlay (overlay-end comint-last-prompt-overlay)))
-	((boundp 'comint-last-prompt)
-	 (and comint-last-prompt (cdr comint-last-prompt)))
-	(t (error "comint last prompt not found"))))
-
-(defun geiser-comint-last-prompt-start ()
-  (cond ((boundp 'comint-last-prompt-overlay)
-	 (and comint-last-prompt-overlay (overlay-start comint-last-prompt-overlay)))
-	((boundp 'comint-last-prompt)
-	 (and comint-last-prompt (car comint-last-prompt)))
-	(t (error "comint last prompt not found"))))
-
-(defun geiser-repl--last-prompt-end ()
-  (or (geiser-comint-last-prompt-end)
-      (save-excursion (geiser-repl--bol) (point))))
-
-(defun geiser-repl--last-prompt-start ()
-  (or (geiser-comint-last-prompt-start)
-      (save-excursion (geiser-repl--bol) (point))))
 
 (defun geiser-repl--nesting-level ()
   (save-restriction
