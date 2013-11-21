@@ -105,6 +105,16 @@ expression, if any."
   :type 'boolean
   :group 'geiser-repl)
 
+(geiser-custom--defcustom geiser-repl-skip-version-check-p nil
+  "Whether to skip version checks for the Scheme executable.
+
+When set, Geiser won't check the version of the Scheme
+interpreter when starting a REPL, saving a few tenths of a
+second.
+"
+  :type 'boolean
+  :group 'geiser-repl)
+
 (geiser-custom--defcustom geiser-repl-query-on-exit-p nil
   "Whether to prompt for confirmation on \\[geiser-repl-exit]."
   :type 'boolean
@@ -187,6 +197,13 @@ module command as a string")
 
 (geiser-impl--define-caller geiser-repl--exit-cmd exit-command ()
   "Function returning the REPL exit command as a string")
+
+(geiser-impl--define-caller geiser-repl--version version-command (binary)
+  "Function returning the version of the corresponding scheme process,
+   given its full path.")
+
+(geiser-impl--define-caller geiser-repl--min-version minimum-version ()
+  "A variable providing the minimum required scheme version, as a string.")
 
 
 ;;; Geiser REPL buffers and processes:
@@ -323,8 +340,16 @@ module command as a string")
                         txt)
     (geiser-autodoc--disinhibit-autodoc)))
 
+(defun geiser-repl--check-version (impl)
+  (when (not geiser-repl-skip-version-check-p)
+    (let ((v (geiser-repl--version impl (geiser-repl--binary impl)))
+          (r (geiser-repl--min-version impl)))
+      (when (geiser--version< v r)
+        (error "Geiser requires %s version %s but detected %s" impl r v)))))
+
 (defun geiser-repl--start-repl (impl address)
   (message "Starting Geiser REPL for %s ..." impl)
+  (when (not address) (geiser-repl--check-version impl))
   (geiser-repl--to-repl-buffer impl)
   (sit-for 0)
   (goto-char (point-max))
